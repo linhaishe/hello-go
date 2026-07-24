@@ -11,3 +11,29 @@
   - `os`、`filepath` 模块进行目录遍历与文件读取。
   - `flag` 模块解析命令行参数。
   - `go func()` 启动协程、`chan` 传输结果、`sync.WaitGroup` 等待所有文件检索完成。
+
+## 运行方式
+
+```bash
+go run ./cmd/mini-grep -dir ./ -keyword "hello"
+```
+
+如果你想搜索当前仓库里的某个关键词，可以这样做：
+
+```bash
+go run ./cmd/mini-grep -dir . -keyword "package"
+```
+
+## 示例输出
+
+```text
+./cmd/mini-kv-store/main.go:12: type KVStore struct {
+./cmd/mini-site-check/main.go:27: var targets = []string{
+```
+
+## 说明
+
+- `-dir` 指定要搜索的根目录。
+- `-keyword` 指定要查找的关键词。
+- 程序会递归扫描目录下的所有文件，并为每个文件启动一个 goroutine 处理搜索逻辑。
+- 命中结果会按 `文件路径:行号:内容` 的格式输出。
