@@ -389,3 +389,48 @@ func filesHandler(w http.ResponseWriter, r *http.Request) {
 - **`info.Size()`**：文件的实际物理大小（单位是字节 Byte）。
 
 **`append(files, ...)`**：把构建好的文件信息追加到切片（列表）中。
+---
+`NewServeMux` 和之前的写法区别在于：
+
+## 之前的写法
+你之前是直接用全局默认路由：
+
+```go
+http.HandleFunc("/upload", uploadHandler)
+http.HandleFunc("/files", filesHandler)
+http.Handle("/uploads/", ...)
+http.ListenAndServe(":8080", nil)
+```
+
+这个方式的特点：
+- 直接用 `http.DefaultServeMux`
+- 不显式创建自己的路由器
+- 适合 Demo、快速写法
+
+## 现在的写法
+你现在用了：
+
+```go
+mux := http.NewServeMux()
+mux.HandleFunc("/upload", uploadHandler)
+mux.HandleFunc("/files", filesHandler)
+mux.Handle("/uploads/", ...)
+http.ListenAndServe(":8080", mux)
+```
+
+这个方式的特点：
+- 明确创建一个独立的 `ServeMux`
+- 路由注册和服务器启动更清晰
+- 避免依赖全局默认路由
+- 更适合学习和后续扩展
+
+## 你可以把它理解成
+
+- `http.HandleFunc(...)`：注册到“默认路由器”
+- `http.NewServeMux()`：自己造一个“专属路由器”
+
+所以本质上它们都是用来注册路由的，但：
+- `NewServeMux` 更“标准、独立、可控”
+- 之前那种写法更“简洁、临时型”
+
+如果你想，我也可以继续帮你解释一下 `ServeMux` 在这段程序里具体是怎么分发请求的。

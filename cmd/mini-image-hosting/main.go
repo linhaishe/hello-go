@@ -24,17 +24,19 @@ type FileInfo struct {
 
 func main() {
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		log.Fatalf("failed to create upload directory: %v", err)
+		log.Fatalf("failed to create upload directory (dir=%s): %v", uploadDir, err)
 	}
+	log.Printf("upload directory ready: %s", uploadDir)
 
-	http.HandleFunc("/upload", uploadHandler)
-	http.HandleFunc("/files", filesHandler)
-	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadDir))))
-	http.HandleFunc("/", rootHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/upload", uploadHandler)
+	mux.HandleFunc("/files", filesHandler)
+	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadDir))))
+	mux.HandleFunc("/", rootHandler)
 
 	addr := ":8080"
 	log.Printf("listening on http://localhost%s", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +91,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
+		log.Printf("upload file create failed: path=%s err=%v", dstPath, err)
 		http.Error(w, "failed to create file", http.StatusInternalServerError)
 		return
 	}
