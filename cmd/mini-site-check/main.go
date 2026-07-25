@@ -33,15 +33,22 @@ func main() {
 	log.Println("site checker started")
 	log.Printf("checking %d targets every %s\n", len(targets), checkInterval)
 
+	// 创建一个定时器 ticker，每隔 checkInterval 时间发送一次信号。
 	ticker := time.NewTicker(checkInterval)
+
+	// 在当前函数结束时停止定时器，避免资源泄漏。
 	defer ticker.Stop()
 
+	// ticker.C 是一个 channel。每到一次设定的时间间隔，它就会接收到一个值；for range 会持续等待并接收这些值。
 	for range ticker.C {
+		// 因此每收到一次信号，就执行
 		checkAll(targets)
 	}
 }
 
+// 同时检查多个网址，并等所有检查完成后才返回。
 func checkAll(urls []string) {
+	// 创建 WaitGroup，它用来记录“还有多少个并发任务没完成”。
 	var wg sync.WaitGroup
 
 	for _, target := range urls {
@@ -53,6 +60,8 @@ func checkAll(urls []string) {
 	}
 
 	wg.Wait()
+	// 主 goroutine 在这里等待，直到所有 goroutine 都调用过 wg.Done()，任务数变成 0，checkAll 才结束。
+	// 如果没有 wg.Wait()，checkAll 会在刚启动所有 goroutine 后立刻返回，不会等检查结果完成。
 }
 
 func checkSite(site string) {
