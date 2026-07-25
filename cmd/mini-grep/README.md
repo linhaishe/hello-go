@@ -436,3 +436,27 @@ close(results)     // Go 内置函数，关闭 channel
 
 ---
 
+`scanner := bufio.NewScanner(file)`
+
+`bufio.NewScanner()` 是 Go 标准库 **`bufio`（Buffered I/O，带缓冲的输入输出）** 中最常用的一个函数。
+
+它的作用可以一句话概括：
+
+> **把一个数据流（文件、网络、字符串等）包装成一个可以"一点一点读取"的扫描器（Scanner）。**
+
+对于文件来说，它默认是**按行读取**。
+
+在 Go 中，它最常见的用途就是**按行读取文本文件**：
+
+          Reader（文件/网络/字符串）
+                    │
+                    ▼
+          bufio.NewScanner()
+                    │
+                    ▼
+          Scanner（扫描器）
+                    │
+        ┌───────────┴───────────┐
+        ▼           ▼           ▼
+     Scan()      Text()      Err()
+  读取下一段    获取当前段    检查读取错误
