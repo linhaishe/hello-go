@@ -459,4 +459,79 @@ close(results)     // Go 内置函数，关闭 channel
         ┌───────────┴───────────┐
         ▼           ▼           ▼
      Scan()      Text()      Err()
-  读取下一段    获取当前段    检查读取错误
+     读取下一段    获取当前段    检查读取错误
+`bufio` 是 Go 标准库中专门做**带缓冲 I/O（Buffered I/O）** 的包。
+
+它主要提供了 **3 大类对象**：
+
+| 类型      | 用途            | 最常用指数 |
+| --------- | --------------- | ---------- |
+| `Reader`  | 高效读取数据    | ⭐⭐⭐⭐⭐      |
+| `Writer`  | 高效写入数据    | ⭐⭐⭐⭐       |
+| `Scanner` | 按行/按单词扫描 | ⭐⭐⭐⭐⭐      |
+
+为你将这份 Go `bufio` 标准库的学习笔记梳理整理为了 **核心组件对照表** 与 **API 详细索引表**，方便随查随用：
+
+## 一、 Scanner / Reader / Writer 核心组件对比
+
+| **组件分类**  | **适用场景**                                                 | **优点**                                                     | **缺点 / 常见坑点**                                        | **企业使用频率** |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------- | ---------------- |
+| **`Scanner`** | 文本解析、按行读取日志、搜索关键词、按词分割文本             | 接口设计极佳，通过 `for scanner.Scan()` 遍历最直观           | 单行数据有默认缓冲区大小限制（64KB），超长行易溢出         | ★★★★★            |
+| **`Reader`**  | 网络协议解析（TCP/HTTP Body）、二进制文件处理、单行超长文本读取 | 灵活度高，支持 `Peek`（偷看）、`Discard`（跳过）及按任意分隔符读取 | 无 `Scan()` 式的简洁循环结构，需要手动处理 `io.EOF`        | ★★★★★            |
+| **`Writer`**  | 批量写入文件、构建网络响应数据流                             | 避免频繁写入磁盘/网络 IO，大大提升写入吞吐量                 | **必须显式调用 `Flush()`**，否则数据滞留缓冲区无法写入磁盘 | ★★★★★            |
+
+## 二、 `bufio` 核心 API 快速检索表
+
+### 1. Scanner 扫描器（文本处理首选）
+
+| **API 方法 / 函数**            | **返回值类型**   | **核心作用与使用说明**                                       |
+| ------------------------------ | ---------------- | ------------------------------------------------------------ |
+| **`bufio.NewScanner(r)`**      | `*bufio.Scanner` | 创建一个以 `r` (实现 `io.Reader` 接口) 为源的扫描器。        |
+| **`scanner.Scan()`**           | `bool`           | 尝试获取下一段 Token（默认是一行）。有数据返回 `true`，读完或报错返回 `false`。 |
+| **`scanner.Text()`**           | `string`         | 获取刚刚扫描到的文本内容（已自动剥离换行符）。               |
+| **`scanner.Bytes()`**          | `[]byte`         | 获取刚刚扫描到的字节切片（零拷贝，用于计算哈希或网络发送效率更高）。 |
+| **`scanner.Err()`**            | `error`          | 扫描循环结束后检查是否出错（需要排除 `io.EOF`）。            |
+| **`scanner.Buffer(buf, max)`** | 无               | 调整扫描时的初始缓冲区和最大 Token 限制（解决默认 64KB 超长行限制）。 |
+| **`scanner.Split(splitFunc)`** | 无               | 自定义分割规则：如 `bufio.ScanLines`（按行）、`bufio.ScanWords`（按词）、`bufio.ScanBytes`（按字节）。 |
+
+### 2. Reader 带缓冲读取器
+
+| **API 方法 / 函数**            | **返回值类型**          | **核心作用与使用说明**                                       |
+| ------------------------------ | ----------------------- | ------------------------------------------------------------ |
+| **`bufio.NewReader(r)`**       | `*bufio.Reader`         | 创建一个带缓冲区的读取器。                                   |
+| **`reader.ReadString(delim)`** | `(string, error)`       | 读取数据直到首次遇到分隔符 `delim`（如 `'\n'`），**结果保留分隔符**。 |
+| **`reader.ReadBytes(delim)`**  | `([]byte, error)`       | 与 `ReadString` 功能一致，仅返回格式为字节切片。             |
+| **`reader.Read(p)`**           | `(n int, error)`        | 读取最多 `len(p)` 字节的数据填充到 `p` 中（适合二进制处理）。 |
+| **`reader.Peek(n)`**           | `([]byte, error)`       | **偷看前 `n` 字节数据**，但不会移动底层读取指针（后续读取操作仍能读到）。 |
+| **`reader.Discard(n)`**        | `(discarded int, err)`  | 直接丢弃跳过接下来的 `n` 字节数据。                          |
+| **`reader.ReadLine()`**        | `(line, isPrefix, err)` | 底层按行读取（企业级开发中更推荐 `ReadString('\n')` 或 `Scanner`）。 |
+
+### 3. Writer 带缓冲写入器 & ReadWriter
+
+| **API 方法 / 函数**             | **返回值类型**      | **核心作用与使用说明**                                       |
+| ------------------------------- | ------------------- | ------------------------------------------------------------ |
+| **`bufio.NewWriter(w)`**        | `*bufio.Writer`     | 创建一个带缓冲区的写入器。                                   |
+| **`writer.WriteString(s)`**     | `(int, error)`      | 写入一个字符串到缓冲区（常用）。                             |
+| **`writer.Write(b)`**           | `(int, error)`      | 写入一个字节切片到缓冲区。                                   |
+| **`writer.Flush()`**            | `error`             | **最核心方法！** 将缓冲区中的残余数据真正刷入磁盘文件或网络连接（常用 `defer writer.Flush()`）。 |
+| **`bufio.NewReadWriter(r, w)`** | `*bufio.ReadWriter` | 将一个 `Reader` 和一个 `Writer` 组合为一个同时具备读写能力的对象（常见于双向 TCP 网络编程）。 |
+
+💡 必背核心清单（Go 后端高频 9 式）
+
+```Go
+// 1. 文本读取
+scanner := bufio.NewScanner(file)
+for scanner.Scan() {
+    line := scanner.Text()
+}
+if err := scanner.Err(); err != nil { ... }
+
+// 2. 网络/流式读取
+reader := bufio.NewReader(conn)
+line, err := reader.ReadString('\n')
+
+// 3. 高效写入
+writer := bufio.NewWriter(file)
+defer writer.Flush() // 必写！
+writer.WriteString("hello world\n")
+```
